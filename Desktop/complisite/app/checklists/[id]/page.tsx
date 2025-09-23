@@ -15,11 +15,15 @@ import {
   CheckCircle2,
   AlertTriangle,
   FileText,
-  MessageSquare
+  MessageSquare,
+  Wifi,
+  WifiOff
 } from "lucide-react"
 import { supabase } from '@/lib/supabase'
 import { PhotoUpload } from '@/components/photo-upload'
 import { SimplePhotoGallery } from '@/components/simple-photo-gallery'
+import { useOfflineStorage } from '@/components/useOfflineStorage'
+import { ReportGenerator } from '@/components/report-generator'
 
 type ChecklistItem = {
   id: string
@@ -51,6 +55,7 @@ type Checklist = {
 export default function ChecklistPage() {
   const params = useParams()
   const router = useRouter()
+  const { isOnline, pendingSync, saveOfflineData } = useOfflineStorage()
   const [checklist, setChecklist] = useState<Checklist | null>(null)
   const [items, setItems] = useState<ChecklistItem[]>([])
   const [loading, setLoading] = useState(true)
@@ -153,16 +158,72 @@ export default function ChecklistPage() {
     }
   }
 
-  const handleItemToggle = (itemId: string) => {
+  const handleItemToggle = async (itemId: string) => {
+    const item = items.find(i => i.id === itemId)
+    if (!item) return
+
+    // Update UI immediately
     setItems(prev => prev.map(item => 
       item.id === itemId ? { ...item, is_completed: !item.is_completed } : item
     ))
+
+    // Save to offline storage if offline
+    if (!isOnline) {
+      await saveOfflineData('checklist', {
+        checklistId: checklist?.id,
+        itemId,
+        action: 'toggle',
+        isCompleted: !item.is_completed,
+        timestamp: Date.now()
+      })
+    } else {
+      // Try to sync immediately if online
+      try {
+        // TODO: Replace with actual API call
+        // await updateChecklistItem(itemId, !item.is_completed)
+        console.log('Syncing checklist item:', itemId, !item.is_completed)
+      } catch (error) {
+        // If sync fails, save offline
+        await saveOfflineData('checklist', {
+          checklistId: checklist?.id,
+          itemId,
+          action: 'toggle',
+          isCompleted: !item.is_completed,
+          timestamp: Date.now()
+        })
+      }
+    }
   }
 
-  const handleCommentChange = (itemId: string, comment: string) => {
+  const handleCommentChange = async (itemId: string, comment: string) => {
+    // Update UI immediately
     setItems(prev => prev.map(item => 
       item.id === itemId ? { ...item, comments: comment } : item
     ))
+
+    // Save to offline storage if offline
+    if (!isOnline) {
+      await saveOfflineData('comment', {
+        checklistId: checklist?.id,
+        itemId,
+        comment,
+        timestamp: Date.now()
+      })
+    } else {
+      // Try to sync immediately if online
+      try {
+        // TODO: Replace with actual API call
+        console.log('Syncing comment:', itemId, comment)
+      } catch (error) {
+        // If sync fails, save offline
+        await saveOfflineData('comment', {
+          checklistId: checklist?.id,
+          itemId,
+          comment,
+          timestamp: Date.now()
+        })
+      }
+    }
   }
 
   const loadPhotosFromSupabase = async (checklistId: string) => {
@@ -302,6 +363,26 @@ export default function ChecklistPage() {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Online/Offline Indicator */}
+      <div className="fixed top-4 right-4 z-50">
+        {isOnline ? (
+          <div className="flex items-center gap-2 bg-green-100 text-green-700 px-3 py-1 rounded-full">
+            <Wifi className="h-4 w-4" />
+            <span className="text-sm">Online</span>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 bg-orange-100 text-orange-700 px-3 py-1 rounded-full">
+            <WifiOff className="h-4 w-4" />
+            <span className="text-sm">Offline</span>
+          </div>
+        )}
+        {pendingSync.length > 0 && (
+          <div className="mt-2 text-xs text-gray-500">
+            {pendingSync.length} items pending sync
+          </div>
+        )}
+      </div>
+
       {/* Header */}
       <div className="sticky top-0 z-10 bg-background border-b">
         <div className="container mx-auto px-4 py-4">
@@ -461,6 +542,36 @@ export default function ChecklistPage() {
             </div>
           </div>
         ))}
+      </div>
+
+      {/* Report Generation Section */}
+      <div className="sticky bottom-0 bg-background border-t p-4">
+        <div className="container mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Button onClick={handleSave} disabled={saving} className="w-full">
+              {saving ? (
+                'Saving...'
+              ) : (
+                <>
+                  <Save className="mr-2 h-4 w-4" />
+                  Save Progress
+                </>
+              )}
+            </Button>
+            
+            <ReportGenerator 
+              project={{ 
+                name: 'Construction Project', 
+                address: '123 Construction Site, City',
+                status: 'active',
+                compliance_score: Math.round(completionPercentage)
+              }}
+              checklist={checklist}
+              items={items}
+              photos={items.flatMap((item: any) => item.photos || [])}
+            />
+          </div>
+        </div>
       </div>
 
       {/* Floating Action Button for Mobile */}

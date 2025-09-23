@@ -1,6 +1,6 @@
 'use client'
 
-import { Building2, Bell, Settings, User, LogOut } from "lucide-react"
+import { Building2, Bell, Settings, User, LogOut, Users, Home } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -12,25 +12,48 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { createClient } from "@/lib/supabase"
-import { useRouter } from "next/navigation"
+import { useRouter, usePathname } from "next/navigation"
 
 export function Header() {
   const router = useRouter()
+  const pathname = usePathname()
   const supabase = createClient()
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
     router.push('/auth/login')
   }
+
+  const isActive = (path: string) => pathname === path
   return (
     <header className="border-b bg-card">
       <div className="container mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-6">
             <div className="flex items-center gap-2">
               <Building2 className="h-8 w-8 text-primary" />
               <span className="text-2xl font-bold text-primary">CompliSite</span>
             </div>
+            
+            {/* Navigation Menu */}
+            <nav className="hidden md:flex items-center gap-4">
+              <Button
+                variant={isActive('/dashboard') ? 'default' : 'ghost'}
+                onClick={() => router.push('/dashboard')}
+                className="flex items-center gap-2"
+              >
+                <Home className="h-4 w-4" />
+                Dashboard
+              </Button>
+              <Button
+                variant={isActive('/team') ? 'default' : 'ghost'}
+                onClick={() => router.push('/team')}
+                className="flex items-center gap-2"
+              >
+                <Users className="h-4 w-4" />
+                Team
+              </Button>
+            </nav>
           </div>
 
           <div className="flex items-center gap-4">
@@ -55,7 +78,7 @@ export function Header() {
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem>
+                <DropdownMenuItem onClick={() => router.push('/profile')}>
                   <User className="mr-2 h-4 w-4" />
                   <span>Profile</span>
                 </DropdownMenuItem>
