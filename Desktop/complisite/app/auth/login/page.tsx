@@ -8,12 +8,13 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Building2, Loader2 } from "lucide-react"
-import { supabase } from '@/lib/supabase'
+import { createClient } from '@/lib/supabase'
 
 export default function AuthPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const supabase = createClient()
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -48,46 +49,53 @@ export default function AuthPage() {
     const fullName = formData.get('fullName') as string
     const companyName = formData.get('companyName') as string
 
-    // First, create the auth user
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          full_name: fullName,
-          company_name: companyName,
+    try {
+      // First, create the auth user
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: fullName,
+            company_name: companyName,
+          }
+        }
+      })
+
+      if (authError) {
+        setError(authError.message)
+        setLoading(false)
+        return
+      }
+
+      // Create company and user records
+      if (authData.user) {
+        const { data: company, error: companyError } = await supabase
+          .from('companies')
+          .insert({ name: companyName })
+          .select()
+          .single()
+
+        if (!companyError && company) {
+          await supabase
+            .from('users')
+            .insert({
+              id: authData.user.id,
+              email: email,
+              full_name: fullName,
+              company_id: company.id,
+              role: 'admin'
+            })
         }
       }
-    })
 
-    if (authError) {
-      setError(authError.message)
+      // Show success message and redirect
+      setError(null)
+      router.push('/dashboard')
+    } catch (err) {
+      setError('An unexpected error occurred. Please try again.')
       setLoading(false)
-      return
     }
-
-    // Create company and user records
-    if (authData.user) {
-      const { data: company, error: companyError } = await supabase
-        .from('companies')
-        .insert({ name: companyName })
-        .select()
-        .single()
-
-      if (!companyError && company) {
-        await supabase
-          .from('users')
-          .insert({
-            id: authData.user.id,
-            email: email,
-            full_name: fullName,
-            company_id: company.id,
-            role: 'admin'
-          })
-      }
-    }
-
-    router.push('/dashboard')
   }
 
   return (

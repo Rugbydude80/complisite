@@ -1,3 +1,5 @@
+'use client'
+
 import { Building2, Bell, Settings, User, LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
@@ -9,8 +11,17 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { createClient } from "@/lib/supabase"
+import { useRouter } from "next/navigation"
 
 export function Header() {
+  const router = useRouter()
+  const supabase = createClient()
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
+    router.push('/auth/login')
+  }
   return (
     <header className="border-b bg-card">
       <div className="container mx-auto px-4 py-4">
@@ -53,7 +64,7 @@ export function Header() {
                   <span>Settings</span>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem>
+                <DropdownMenuItem onClick={handleLogout}>
                   <LogOut className="mr-2 h-4 w-4" />
                   <span>Log out</span>
                 </DropdownMenuItem>

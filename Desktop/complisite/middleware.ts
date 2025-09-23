@@ -58,7 +58,7 @@ export async function middleware(request: NextRequest) {
 
   // Protect dashboard route
   if (request.nextUrl.pathname.startsWith('/dashboard') && !user) {
-    return NextResponse.redirect(new URL('/login', request.url))
+    return NextResponse.redirect(new URL('/auth/login', request.url))
   }
 
   return response
