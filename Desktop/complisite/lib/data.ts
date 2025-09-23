@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { ProjectService } from './project-service'
 
 export type Project = {
   id: string
@@ -17,24 +18,11 @@ export type Stats = {
 }
 
 export async function getProjects(): Promise<Project[]> {
-  const { data, error } = await supabase
-    .from('projects')
-    .select('*')
-    .order('created_at', { ascending: false })
-  
-  if (error) {
-    console.error('Error fetching projects:', error)
-    return []
-  }
-  
-  return data || []
+  return await ProjectService.getProjects()
 }
 
 export async function getStats(): Promise<Stats> {
-  // Get total projects
-  const { count: projectCount } = await supabase
-    .from('projects')
-    .select('*', { count: 'exact', head: true })
+  const projects = await ProjectService.getProjects()
   
   // Get active checklists
   const { count: checklistCount } = await supabase
@@ -42,11 +30,7 @@ export async function getStats(): Promise<Stats> {
     .select('*', { count: 'exact', head: true })
   
   // Get average compliance
-  const { data: projects } = await supabase
-    .from('projects')
-    .select('compliance_score')
-  
-  const avgCompliance = projects
+  const avgCompliance = projects.length > 0
     ? Math.round(projects.reduce((acc, p) => acc + p.compliance_score, 0) / projects.length)
     : 0
   
@@ -60,7 +44,7 @@ export async function getStats(): Promise<Stats> {
     : 0
   
   return {
-    totalProjects: projectCount || 0,
+    totalProjects: projects.length,
     activeChecklists: checklistCount || 0,
     averageCompliance: avgCompliance,
     pendingItems: pendingItems

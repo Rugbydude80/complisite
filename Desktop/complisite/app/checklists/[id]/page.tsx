@@ -183,25 +183,38 @@ export default function ChecklistPage() {
       // Group photos by checklist item
       const photosByItem: Record<string, Photo[]> = {}
       
-      files?.forEach(file => {
-        // Files are named like "1-1758646399526.png" where "1" is the item ID
+      // Process files sequentially to handle async signed URL creation
+      for (const file of files || []) {
         const fileName = file.name
         const itemId = fileName.split('-')[0]
         
-        const { data: { publicUrl } } = supabase.storage
-          .from('evidence')
-          .getPublicUrl(`checklist-evidence/${fileName}`)
+        try {
+          // Use signed URL for secure access (1 hour expiry)
+          const { data: signedUrlData, error: signedUrlError } = await supabase.storage
+            .from('evidence')
+            .createSignedUrl(`checklist-evidence/${fileName}`, 3600)
+          
+          if (signedUrlError) {
+            console.error('Error creating signed URL:', signedUrlError)
+            continue
+          }
+          
+          const publicUrl = signedUrlData?.signedUrl
+          if (!publicUrl) continue
 
-        if (!photosByItem[itemId]) {
-          photosByItem[itemId] = []
+          if (!photosByItem[itemId]) {
+            photosByItem[itemId] = []
+          }
+
+          photosByItem[itemId].push({
+            id: file.id || fileName,
+            url: publicUrl,
+            uploaded_at: file.created_at || new Date().toISOString()
+          })
+        } catch (error) {
+          console.error('Error processing file:', fileName, error)
         }
-
-        photosByItem[itemId].push({
-          id: file.id || fileName,
-          url: publicUrl,
-          uploaded_at: file.created_at || new Date().toISOString()
-        })
-      })
+      }
 
       // Update items with their photos
       setItems(prev => prev.map(item => ({
