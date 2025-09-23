@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
@@ -10,6 +11,7 @@ import { getProjects, type Project } from '@/lib/data'
 
 export function ProjectsGrid() {
   const [projects, setProjects] = useState<Project[]>([])
+  const router = useRouter()
 
   useEffect(() => {
     async function fetchProjects() {
@@ -71,7 +73,11 @@ export function ProjectsGrid() {
                 <Calendar className="h-3 w-3 mr-1" />
                 Updated {new Date(project.updated_at).toLocaleDateString()}
               </div>
-              <Button size="sm" variant="ghost">
+              <Button 
+                size="sm" 
+                variant="ghost"
+                onClick={() => router.push(`/projects/${project.id}`)}
+              >
                 <Eye className="h-4 w-4 mr-1" />
                 View
               </Button>
