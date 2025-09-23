@@ -1,7 +1,7 @@
-import { Header } from "@/app/components/header"
-import { StatsCards } from "@/app/components/stats-cards"
-import { ProjectsGrid } from "@/app/components/projects-grid"
-import { AddProjectButton } from "@/app/components/add-project-button"
+import { Header } from "@/components/header"
+import { StatsCards } from "@/components/stats-cards"
+import { ProjectsGrid } from "@/components/projects-grid"
+import { AddProjectButton } from "@/components/add-project-button"
 
 export default function Dashboard() {
   return (

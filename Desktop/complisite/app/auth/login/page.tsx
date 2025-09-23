@@ -117,7 +117,7 @@ export default function AuthPage() {
             </TabsList>
 
             <TabsContent value="login">
-              <form onSubmit={handleLogin}>
+              <form onSubmit={handleLogin} suppressHydrationWarning={true}>
                 <CardHeader>
                   <CardTitle>Welcome back</CardTitle>
                   <CardDescription>
@@ -139,6 +139,7 @@ export default function AuthPage() {
                       placeholder="name@company.com"
                       required
                       disabled={loading}
+                      suppressHydrationWarning={true}
                     />
                   </div>
                   <div className="space-y-2">
@@ -149,6 +150,7 @@ export default function AuthPage() {
                       type="password"
                       required
                       disabled={loading}
+                      suppressHydrationWarning={true}
                     />
                   </div>
                 </CardContent>
@@ -168,7 +170,7 @@ export default function AuthPage() {
             </TabsContent>
 
             <TabsContent value="signup">
-              <form onSubmit={handleSignUp}>
+              <form onSubmit={handleSignUp} suppressHydrationWarning={true}>
                 <CardHeader>
                   <CardTitle>Create an account</CardTitle>
                   <CardDescription>
@@ -189,6 +191,7 @@ export default function AuthPage() {
                       placeholder="BuildRight Construction Ltd"
                       required
                       disabled={loading}
+                      suppressHydrationWarning={true}
                     />
                   </div>
                   <div className="space-y-2">
@@ -199,6 +202,7 @@ export default function AuthPage() {
                       placeholder="John Smith"
                       required
                       disabled={loading}
+                      suppressHydrationWarning={true}
                     />
                   </div>
                   <div className="space-y-2">
@@ -210,6 +214,7 @@ export default function AuthPage() {
                       placeholder="name@company.com"
                       required
                       disabled={loading}
+                      suppressHydrationWarning={true}
                     />
                   </div>
                   <div className="space-y-2">
@@ -220,6 +225,7 @@ export default function AuthPage() {
                       type="password"
                       required
                       disabled={loading}
+                      suppressHydrationWarning={true}
                     />
                   </div>
                 </CardContent>

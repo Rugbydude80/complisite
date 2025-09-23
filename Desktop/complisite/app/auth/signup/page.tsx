@@ -92,7 +92,7 @@ export default function SignupPage() {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSignup} className="space-y-4">
+        <form onSubmit={handleSignup} className="space-y-4" suppressHydrationWarning={true}>
           <div className="space-y-2">
             <Label htmlFor="company-name">Company Name</Label>
             <Input
@@ -101,6 +101,7 @@ export default function SignupPage() {
               value={signupData.companyName}
               onChange={(e) => setSignupData((prev) => ({ ...prev, companyName: e.target.value }))}
               className={errors.companyName ? "border-destructive" : ""}
+              suppressHydrationWarning={true}
             />
             {errors.companyName && <p className="text-sm text-destructive">{errors.companyName}</p>}
           </div>
@@ -113,6 +114,7 @@ export default function SignupPage() {
               value={signupData.fullName}
               onChange={(e) => setSignupData((prev) => ({ ...prev, fullName: e.target.value }))}
               className={errors.fullName ? "border-destructive" : ""}
+              suppressHydrationWarning={true}
             />
             {errors.fullName && <p className="text-sm text-destructive">{errors.fullName}</p>}
           </div>
@@ -126,6 +128,7 @@ export default function SignupPage() {
               value={signupData.email}
               onChange={(e) => setSignupData((prev) => ({ ...prev, email: e.target.value }))}
               className={errors.email ? "border-destructive" : ""}
+              suppressHydrationWarning={true}
             />
             {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
           </div>
@@ -139,6 +142,7 @@ export default function SignupPage() {
               value={signupData.password}
               onChange={(e) => setSignupData((prev) => ({ ...prev, password: e.target.value }))}
               className={errors.password ? "border-destructive" : ""}
+              suppressHydrationWarning={true}
             />
             {errors.password && <p className="text-sm text-destructive">{errors.password}</p>}
           </div>
@@ -152,6 +156,7 @@ export default function SignupPage() {
               value={signupData.confirmPassword}
               onChange={(e) => setSignupData((prev) => ({ ...prev, confirmPassword: e.target.value }))}
               className={errors.confirmPassword ? "border-destructive" : ""}
+              suppressHydrationWarning={true}
             />
             {errors.confirmPassword && <p className="text-sm text-destructive">{errors.confirmPassword}</p>}
           </div>

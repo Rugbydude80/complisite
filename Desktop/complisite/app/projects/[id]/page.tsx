@@ -224,7 +224,11 @@ export default function ProjectDetailPage() {
                           className="h-2" 
                         />
                       </div>
-                      <Button className="w-full mt-4" variant="outline">
+                      <Button 
+                        className="w-full mt-4" 
+                        variant="outline"
+                        onClick={() => router.push(`/checklists/${checklist.id}`)}
+                      >
                         View Checklist
                       </Button>
                     </CardContent>
