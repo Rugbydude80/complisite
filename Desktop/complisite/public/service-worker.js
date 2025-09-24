@@ -47,27 +47,30 @@ self.addEventListener('activate', (event) => {
 
 // Fetch event - serve from cache when offline
 self.addEventListener('fetch', (event) => {
-  // Skip cross-origin requests
+  // Skip cross-origin requests and external services
   if (!event.request.url.startsWith(self.location.origin)) {
+    return;
+  }
+
+  // Skip requests to external services that might cause errors
+  if (event.request.url.includes('datadoghq.com') || 
+      event.request.url.includes('analytics') ||
+      event.request.url.includes('tracking') ||
+      event.request.url.includes('monitoring')) {
     return;
   }
 
   // Handle API calls differently
   if (event.request.url.includes('/api/')) {
     event.respondWith(
-      caches.open(DATA_CACHE_NAME).then((cache) => {
-        return fetch(event.request)
-          .then((response) => {
-            // If the response was good, clone it and store it in the cache
-            if (response.status === 200) {
-              cache.put(event.request.url, response.clone());
-            }
-            return response;
-          })
-          .catch((err) => {
-            // Network request failed, try to get it from the cache
-            return cache.match(event.request);
-          });
+      fetch(event.request).catch((err) => {
+        console.log('[ServiceWorker] API request failed:', event.request.url, err);
+        // Return a basic response for failed API calls
+        return new Response(JSON.stringify({ error: 'Network request failed' }), {
+          status: 503,
+          statusText: 'Service Unavailable',
+          headers: { 'Content-Type': 'application/json' }
+        });
       })
     );
     return;
@@ -94,11 +97,14 @@ self.addEventListener('fetch', (event) => {
         });
 
         return response;
-      }).catch(() => {
+      }).catch((error) => {
+        console.log('[ServiceWorker] Fetch failed for:', event.request.url, error);
         // Return offline page for navigation requests
         if (event.request.mode === 'navigate') {
           return caches.match(OFFLINE_URL);
         }
+        // For other requests, just let them fail gracefully
+        throw error;
       });
     })
   );

@@ -1,440 +1,265 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog'
-import { Label } from '@/components/ui/label'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import { Textarea } from '@/components/ui/textarea'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import {
-  Search,
-  UserPlus,
-  MoreVertical,
+import { 
+  Users, 
+  UserPlus, 
   Mail,
-  Shield,
-  User,
-  Users,
-  AlertCircle,
+  Phone,
+  Award,
+  AlertTriangle,
   CheckCircle,
-  XCircle,
-  RefreshCw
+  Clock,
+  MoreHorizontal
 } from 'lucide-react'
-import { TeamService, type OrganizationMember, type Role, type Invitation } from '@/lib/team-service'
-import { supabase } from '@/lib/supabase'
+
+interface TeamMember {
+  id: string
+  name: string
+  email: string
+  role: string
+  trade: string
+  avatar?: string
+  status: 'active' | 'inactive' | 'pending'
+  certificates: number
+  compliance_rate: number
+  last_active: string
+}
 
 export default function TeamPage() {
-  const [members, setMembers] = useState<OrganizationMember[]>([])
-  const [invitations, setInvitations] = useState<Invitation[]>([])
-  const [searchTerm, setSearchTerm] = useState('')
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
   const [loading, setLoading] = useState(true)
-  const [inviteOpen, setInviteOpen] = useState(false)
-  const [inviteData, setInviteData] = useState({
-    email: '',
-    role: 'worker' as Role,
-    message: ''
-  })
-  const [organizationId, setOrganizationId] = useState<string>('')
 
   useEffect(() => {
-    loadTeamData()
+    loadTeamMembers()
   }, [])
 
-  const loadTeamData = async () => {
+  const loadTeamMembers = async () => {
     try {
-      // Get user's organization
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+      // Mock data for now - replace with actual Supabase query
+      const mockTeamMembers: TeamMember[] = [
+        {
+          id: '1',
+          name: 'John Smith',
+          email: 'john.smith@company.com',
+          role: 'Foreman',
+          trade: 'Electrical',
+          status: 'active',
+          certificates: 8,
+          compliance_rate: 95,
+          last_active: '2024-09-24'
+        },
+        {
+          id: '2',
+          name: 'Sarah Johnson',
+          email: 'sarah.johnson@company.com',
+          role: 'Supervisor',
+          trade: 'Safety',
+          status: 'active',
+          certificates: 12,
+          compliance_rate: 100,
+          last_active: '2024-09-24'
+        },
+        {
+          id: '3',
+          name: 'Mike Wilson',
+          email: 'mike.wilson@company.com',
+          role: 'Worker',
+          trade: 'Carpentry',
+          status: 'active',
+          certificates: 6,
+          compliance_rate: 85,
+          last_active: '2024-09-23'
+        },
+        {
+          id: '4',
+          name: 'Lisa Brown',
+          email: 'lisa.brown@company.com',
+          role: 'Worker',
+          trade: 'Plumbing',
+          status: 'pending',
+          certificates: 4,
+          compliance_rate: 70,
+          last_active: '2024-09-20'
+        }
+      ]
 
-      const { data: orgMember } = await supabase
-        .from('organization_members')
-        .select('organization_id')
-        .eq('user_id', user.id)
-        .single()
-
-      if (!orgMember) return
-
-      setOrganizationId(orgMember.organization_id)
-
-      // Load members and invitations
-      const [membersData, invitationsData] = await Promise.all([
-        TeamService.getMembers(orgMember.organization_id),
-        TeamService.getPendingInvitations(orgMember.organization_id)
-      ])
-
-      setMembers(membersData)
-      setInvitations(invitationsData)
+      setTeamMembers(mockTeamMembers)
     } catch (error) {
-      console.error('Error loading team data:', error)
+      console.error('Error loading team members:', error)
     } finally {
       setLoading(false)
     }
   }
 
-  const handleInvite = async () => {
-    try {
-      await TeamService.inviteMember(
-        organizationId,
-        inviteData.email,
-        inviteData.role,
-        inviteData.message
-      )
-      
-      setInviteOpen(false)
-      setInviteData({ email: '', role: 'worker', message: '' })
-      await loadTeamData()
-    } catch (error: any) {
-      alert(error.message)
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'active':
+        return <CheckCircle className="h-4 w-4 text-green-600" />
+      case 'pending':
+        return <Clock className="h-4 w-4 text-orange-600" />
+      case 'inactive':
+        return <AlertTriangle className="h-4 w-4 text-red-600" />
+      default:
+        return <Clock className="h-4 w-4 text-gray-600" />
     }
-  }
-
-  const handleRoleChange = async (userId: string, newRole: Role) => {
-    try {
-      await TeamService.changeMemberRole(organizationId, userId, newRole)
-      await loadTeamData()
-    } catch (error) {
-      console.error('Error changing role:', error)
-    }
-  }
-
-  const handleStatusChange = async (userId: string, status: 'active' | 'suspended') => {
-    try {
-      await TeamService.updateMemberStatus(organizationId, userId, status)
-      await loadTeamData()
-    } catch (error) {
-      console.error('Error changing status:', error)
-    }
-  }
-
-  const handleRemoveMember = async (userId: string) => {
-    if (!confirm('Are you sure you want to remove this member?')) return
-    
-    try {
-      await TeamService.removeMember(organizationId, userId)
-      await loadTeamData()
-    } catch (error) {
-      console.error('Error removing member:', error)
-    }
-  }
-
-  const handleResendInvitation = async (invitationId: string) => {
-    try {
-      await TeamService.resendInvitation(invitationId)
-      alert('Invitation resent successfully')
-    } catch (error) {
-      console.error('Error resending invitation:', error)
-    }
-  }
-
-  const handleRevokeInvitation = async (invitationId: string) => {
-    try {
-      await TeamService.revokeInvitation(invitationId)
-      await loadTeamData()
-    } catch (error) {
-      console.error('Error revoking invitation:', error)
-    }
-  }
-
-  const getRoleBadge = (role: Role) => {
-    const roleConfig = {
-      admin: { icon: Shield, color: 'bg-purple-500' },
-      manager: { icon: Users, color: 'bg-blue-500' },
-      worker: { icon: User, color: 'bg-green-500' }
-    }
-    const config = roleConfig[role]
-    const Icon = config.icon
-    
-    return (
-      <Badge className={`${config.color} text-white`}>
-        <Icon className="w-3 h-3 mr-1" />
-        {role.charAt(0).toUpperCase() + role.slice(1)}
-      </Badge>
-    )
   }
 
   const getStatusBadge = (status: string) => {
-    const statusConfig = {
-      active: { icon: CheckCircle, color: 'bg-green-100 text-green-700' },
-      suspended: { icon: XCircle, color: 'bg-red-100 text-red-700' },
-      invited: { icon: Mail, color: 'bg-blue-100 text-blue-700' }
+    switch (status) {
+      case 'active':
+        return <Badge variant="default" className="bg-green-100 text-green-800">Active</Badge>
+      case 'pending':
+        return <Badge variant="default" className="bg-orange-100 text-orange-800">Pending</Badge>
+      case 'inactive':
+        return <Badge variant="destructive">Inactive</Badge>
+      default:
+        return <Badge variant="secondary">Unknown</Badge>
     }
-    const config = statusConfig[status as keyof typeof statusConfig]
-    const Icon = config.icon
-    
+  }
+
+  if (loading) {
     return (
-      <Badge className={config.color}>
-        <Icon className="w-3 h-3 mr-1" />
-        {status.charAt(0).toUpperCase() + status.slice(1)}
-      </Badge>
+      <div className="p-6">
+        <div className="animate-pulse">
+          <div className="h-8 bg-gray-200 rounded w-1/4 mb-4"></div>
+          <div className="space-y-4">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="h-24 bg-gray-200 rounded"></div>
+            ))}
+          </div>
+        </div>
+      </div>
     )
   }
 
-  const filteredMembers = members.filter(member =>
-    member.user_profile?.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    member.user_profile?.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    member.user_profile?.trade?.toLowerCase().includes(searchTerm.toLowerCase())
-  )
-
-  if (loading) {
-    return <div>Loading team...</div>
-  }
-
   return (
-    <div className="container mx-auto p-6">
-      <div className="flex justify-between items-center mb-6">
+    <div className="p-6">
+      <div className="mb-6">
         <h1 className="text-3xl font-bold">Team Management</h1>
-        <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <UserPlus className="mr-2 h-4 w-4" />
-              Invite Member
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Invite Team Member</DialogTitle>
-              <DialogDescription>
-                Send an invitation to join your organization
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="email">Email Address</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={inviteData.email}
-                  onChange={(e) => setInviteData({ ...inviteData, email: e.target.value })}
-                  placeholder="john@example.com"
-                />
-              </div>
-              <div>
-                <Label htmlFor="role">Role</Label>
-                <Select
-                  value={inviteData.role}
-                  onValueChange={(value) => setInviteData({ ...inviteData, role: value as Role })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="admin">Admin</SelectItem>
-                    <SelectItem value="manager">Manager</SelectItem>
-                    <SelectItem value="worker">Worker</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label htmlFor="message">Personal Message (Optional)</Label>
-                <Textarea
-                  id="message"
-                  value={inviteData.message}
-                  onChange={(e) => setInviteData({ ...inviteData, message: e.target.value })}
-                  placeholder="Welcome to the team..."
-                  rows={3}
-                />
-              </div>
-              <Button onClick={handleInvite} className="w-full">
-                Send Invitation
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+        <p className="text-gray-600">Manage your team members and their compliance status</p>
       </div>
 
-      <Tabs defaultValue="members">
-        <TabsList>
-          <TabsTrigger value="members">
-            Active Members ({members.length})
-          </TabsTrigger>
-          <TabsTrigger value="invitations">
-            Pending Invitations ({invitations.length})
-          </TabsTrigger>
-        </TabsList>
+      {/* Quick Actions */}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>Quick Actions</CardTitle>
+        </CardHeader>
+        <CardContent className="flex gap-4">
+          <Button>
+            <UserPlus className="h-4 w-4 mr-2" />
+            Add Team Member
+          </Button>
+          <Button variant="outline">
+            <Mail className="h-4 w-4 mr-2" />
+            Send Bulk Email
+          </Button>
+          <Button variant="outline">
+            <Award className="h-4 w-4 mr-2" />
+            View Training Status
+          </Button>
+        </CardContent>
+      </Card>
 
-        <TabsContent value="members">
-          <Card>
-            <CardHeader>
-              <div className="flex justify-between items-center">
-                <CardTitle>Team Members</CardTitle>
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                  <Input
-                    className="pl-10"
-                    placeholder="Search members..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                  />
+      {/* Team Statistics */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Total Members</p>
+                <p className="text-3xl font-bold text-blue-600">{teamMembers.length}</p>
+              </div>
+              <Users className="h-8 w-8 text-blue-600" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Active Members</p>
+                <p className="text-3xl font-bold text-green-600">
+                  {teamMembers.filter(m => m.status === 'active').length}
+                </p>
+              </div>
+              <CheckCircle className="h-8 w-8 text-green-600" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Pending Approval</p>
+                <p className="text-3xl font-bold text-orange-600">
+                  {teamMembers.filter(m => m.status === 'pending').length}
+                </p>
+              </div>
+              <Clock className="h-8 w-8 text-orange-600" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Avg Compliance</p>
+                <p className="text-3xl font-bold text-purple-600">
+                  {Math.round(teamMembers.reduce((acc, m) => acc + m.compliance_rate, 0) / teamMembers.length)}%
+                </p>
+              </div>
+              <Award className="h-8 w-8 text-purple-600" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Team Members List */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Team Members</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {teamMembers.map((member) => (
+              <div key={member.id} className="border rounded-lg p-4 hover:bg-gray-50">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-4">
+                    <Avatar>
+                      <AvatarImage src={member.avatar} />
+                      <AvatarFallback>{member.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <h3 className="font-semibold">{member.name}</h3>
+                      <p className="text-sm text-gray-600">{member.role} • {member.trade}</p>
+                      <p className="text-xs text-gray-500">{member.email}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-4">
+                    <div className="text-right">
+                      <p className="text-sm font-medium">{member.certificates} certificates</p>
+                      <p className="text-xs text-gray-500">{member.compliance_rate}% compliant</p>
+                    </div>
+                    {getStatusIcon(member.status)}
+                    {getStatusBadge(member.status)}
+                    <Button variant="ghost" size="sm">
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               </div>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Member</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Role</TableHead>
-                    <TableHead>Trade</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Projects</TableHead>
-                    <TableHead>Certificates</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredMembers.map((member) => (
-                    <TableRow key={member.id}>
-                      <TableCell>
-                        <div className="flex items-center gap-3">
-                          <Avatar>
-                            <AvatarImage src={member.user_profile?.avatar_url} />
-                            <AvatarFallback>
-                              {member.user_profile?.full_name?.substring(0, 2).toUpperCase() || '??'}
-                            </AvatarFallback>
-                          </Avatar>
-                          <span className="font-medium">
-                            {member.user_profile?.full_name || 'Unknown'}
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell>{member.user_profile?.email}</TableCell>
-                      <TableCell>{getRoleBadge(member.role)}</TableCell>
-                      <TableCell>{member.user_profile?.trade || '-'}</TableCell>
-                      <TableCell>{getStatusBadge(member.status)}</TableCell>
-                      <TableCell>0</TableCell>
-                      <TableCell>0</TableCell>
-                      <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm">
-                              <MoreVertical className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem>View Profile</DropdownMenuItem>
-                            <DropdownMenuItem 
-                              onClick={() => handleRoleChange(
-                                member.user_id, 
-                                member.role === 'worker' ? 'manager' : 'worker'
-                              )}
-                            >
-                              Change Role
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => handleStatusChange(
-                                member.user_id,
-                                member.status === 'active' ? 'suspended' : 'active'
-                              )}
-                            >
-                              {member.status === 'active' ? 'Suspend' : 'Activate'}
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              className="text-red-600"
-                              onClick={() => handleRemoveMember(member.user_id)}
-                            >
-                              Remove from Team
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="invitations">
-          <Card>
-            <CardHeader>
-              <CardTitle>Pending Invitations</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {invitations.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
-                  No pending invitations
-                </div>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Email</TableHead>
-                      <TableHead>Role</TableHead>
-                      <TableHead>Invited By</TableHead>
-                      <TableHead>Expires</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {invitations.map((invitation) => (
-                      <TableRow key={invitation.id}>
-                        <TableCell>{invitation.email}</TableCell>
-                        <TableCell>{getRoleBadge(invitation.role)}</TableCell>
-                        <TableCell>{invitation.invited_by}</TableCell>
-                        <TableCell>
-                          {new Date(invitation.expires_at).toLocaleDateString()}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex gap-2">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleResendInvitation(invitation.id)}
-                            >
-                              <RefreshCw className="h-4 w-4 mr-1" />
-                              Resend
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              onClick={() => handleRevokeInvitation(invitation.id)}
-                            >
-                              Revoke
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }

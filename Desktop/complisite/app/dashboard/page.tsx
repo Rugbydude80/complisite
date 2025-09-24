@@ -15,33 +15,52 @@ export default function Dashboard() {
   }, [])
 
   const getUserRole = async () => {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        setUserRole('worker')
+        setLoading(false)
+        return
+      }
 
-    // Check if user is an organization admin
-    const { data: orgMember } = await supabase
-      .from('organization_members')
-      .select('role')
-      .eq('user_id', user.id)
-      .single()
+      // Check if user is an organization admin
+      try {
+        const { data: orgMember } = await supabase
+          .from('organization_members')
+          .select('role')
+          .eq('user_id', user.id)
+          .single()
 
-    if (orgMember?.role === 'admin') {
-      setUserRole('admin')
-    } else if (orgMember?.role === 'member') {
-      // Check if they're a project manager
-      const { data: projectRole } = await supabase
-        .from('project_members')
-        .select('role')
-        .eq('user_id', user.id)
-        .eq('role', 'admin')
-        .limit(1)
+        if (orgMember?.role === 'admin') {
+          setUserRole('admin')
+        } else if (orgMember?.role === 'member') {
+          // Check if they're a project manager
+          try {
+            const { data: projectRole } = await supabase
+              .from('project_members')
+              .select('role')
+              .eq('user_id', user.id)
+              .eq('role', 'admin')
+              .limit(1)
 
-      setUserRole(projectRole ? 'manager' : 'worker')
-    } else {
+            setUserRole(projectRole ? 'manager' : 'worker')
+          } catch (error) {
+            console.log('Could not check project role, defaulting to worker')
+            setUserRole('worker')
+          }
+        } else {
+          setUserRole('worker')
+        }
+      } catch (error) {
+        console.log('Could not check organization role, defaulting to worker')
+        setUserRole('worker')
+      }
+    } catch (error) {
+      console.error('Error getting user role:', error)
       setUserRole('worker')
+    } finally {
+      setLoading(false)
     }
-
-    setLoading(false)
   }
 
   if (loading) {

@@ -98,30 +98,44 @@ export function Navigation() {
   }, [])
 
   const loadUserData = async () => {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
 
-    setUser(user)
+      setUser(user)
 
-    // Get user role from profile or organization
-    const { data: profile } = await supabase
-      .from('user_profiles')
-      .select('*, organization_members!inner(role)')
-      .eq('user_id', user.id)
-      .single()
+      // Get user role from profile or organization
+      try {
+        const { data: profile } = await supabase
+          .from('user_profiles')
+          .select('*, organization_members!inner(role)')
+          .eq('user_id', user.id)
+          .single()
 
-    if (profile?.organization_members?.[0]?.role) {
-      setUserRole(profile.organization_members[0].role)
+        if (profile?.organization_members?.[0]?.role) {
+          setUserRole(profile.organization_members[0].role)
+        }
+      } catch (error) {
+        console.log('Could not load user profile, using default role')
+        setUserRole('worker')
+      }
+
+      // Get notification count
+      try {
+        const { count } = await supabase
+          .from('certificate_notifications')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', user.id)
+          .is('read_at', null)
+
+        setNotifications(count || 0)
+      } catch (error) {
+        console.log('Could not load notifications')
+        setNotifications(0)
+      }
+    } catch (error) {
+      console.error('Error loading user data:', error)
     }
-
-    // Get notification count
-    const { count } = await supabase
-      .from('certificate_notifications')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', user.id)
-      .is('read_at', null)
-
-    setNotifications(count || 0)
   }
 
   const handleSignOut = async () => {
