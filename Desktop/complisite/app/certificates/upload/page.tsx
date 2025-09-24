@@ -107,6 +107,7 @@ interface CertificateFormData {
 
 export default function CertificateUploadPage() {
   const router = useRouter()
+  const [mounted, setMounted] = useState(false)
   const [formData, setFormData] = useState<CertificateFormData>({
     category: '',
     type: '',
@@ -121,6 +122,11 @@ export default function CertificateUploadPage() {
   })
   const [uploading, setUploading] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
+
+  // Prevent hydration mismatch from browser extensions
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   const handleInputChange = (field: keyof CertificateFormData, value: string | boolean) => {
     setFormData(prev => ({ ...prev, [field]: value }))
@@ -227,6 +233,20 @@ export default function CertificateUploadPage() {
     return formData.category ? CERTIFICATE_CATEGORIES[formData.category as keyof typeof CERTIFICATE_CATEGORIES] || [] : []
   }
 
+  // Prevent hydration mismatch by not rendering until mounted
+  if (!mounted) {
+    return (
+      <div className="p-6 max-w-4xl mx-auto">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading form...</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="p-6 max-w-4xl mx-auto">
       <div className="mb-6">
@@ -242,7 +262,7 @@ export default function CertificateUploadPage() {
         <p className="text-gray-600">Add your professional certifications and training records</p>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-6" suppressHydrationWarning>
         {/* Certificate Category */}
         <Card>
           <CardHeader>
@@ -316,6 +336,7 @@ export default function CertificateUploadPage() {
                 value={formData.certificateNumber}
                 onChange={(e) => handleInputChange('certificateNumber', e.target.value)}
                 placeholder="Enter certificate number"
+                suppressHydrationWarning
               />
               {errors.certificateNumber && <p className="text-red-500 text-sm mt-1">{errors.certificateNumber}</p>}
             </div>
@@ -339,6 +360,7 @@ export default function CertificateUploadPage() {
                   type="date"
                   value={formData.issueDate}
                   onChange={(e) => handleInputChange('issueDate', e.target.value)}
+                  suppressHydrationWarning
                 />
                 {errors.issueDate && <p className="text-red-500 text-sm mt-1">{errors.issueDate}</p>}
               </div>
@@ -350,6 +372,7 @@ export default function CertificateUploadPage() {
                   type="date"
                   value={formData.expiryDate}
                   onChange={(e) => handleInputChange('expiryDate', e.target.value)}
+                  suppressHydrationWarning
                 />
                 {errors.expiryDate && <p className="text-red-500 text-sm mt-1">{errors.expiryDate}</p>}
               </div>
@@ -394,6 +417,7 @@ export default function CertificateUploadPage() {
                 accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
                 onChange={handleFileChange}
                 className="mt-1"
+                suppressHydrationWarning
               />
               <p className="text-sm text-gray-500 mt-1">
                 Accepted formats: PDF, JPG, PNG, DOC, DOCX (Max 10MB)
@@ -409,6 +433,7 @@ export default function CertificateUploadPage() {
                 onChange={(e) => handleInputChange('description', e.target.value)}
                 placeholder="Add any additional notes about this certificate..."
                 rows={3}
+                suppressHydrationWarning
               />
             </div>
           </CardContent>
