@@ -19,6 +19,7 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { createClient } from '@/lib/supabase'
 
 // Predefined certificate categories and types
 const CERTIFICATE_CATEGORIES = {
@@ -107,6 +108,7 @@ interface CertificateFormData {
 
 export default function CertificateUploadPage() {
   const router = useRouter()
+  const supabase = createClient()
   const [mounted, setMounted] = useState(false)
   const [formData, setFormData] = useState<CertificateFormData>({
     category: '',
