@@ -1,291 +1,388 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Button } from "@/components/ui/button"
-import { Progress } from "@/components/ui/progress"
-import { Badge } from "@/components/ui/badge"
-import { 
-  Building2, 
-  MapPin, 
-  Calendar, 
-  Users, 
-  FileText, 
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Progress } from '@/components/ui/progress'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import {
+  BarChart3,
+  Calendar,
+  Camera,
+  CheckCircle2,
   Clock,
-  ArrowLeft,
+  FileText,
+  MapPin,
+  Users,
+  AlertTriangle,
+  Download,
   Plus,
-  CheckCircle,
-  AlertCircle
-} from "lucide-react"
-import { supabase } from '@/lib/supabase'
+  Shield,
+  TrendingUp
+} from 'lucide-react'
+import { ProjectService } from '@/lib/project-service'
+import { ComplianceChecklist } from '@/components/compliance-checklist'
+import { TeamReadiness } from '@/components/team-readiness'
+import { DailyReportModal } from '@/components/daily-report-modal'
+import { PhotoUpload } from '@/components/photo-upload'
 
-type Project = {
-  id: string
-  name: string
-  address: string
-  status: string
-  compliance_score: number
-  created_at: string
-  updated_at: string
-  company_id: string
-}
-
-type Checklist = {
-  id: string
-  name: string
-  category: string
-  total_items: number
-  completed_items: number
-  created_at: string
-}
-
-export default function ProjectDetailPage() {
+export default function ProjectDashboard() {
   const params = useParams()
   const router = useRouter()
-  const [project, setProject] = useState<Project | null>(null)
-  const [checklists, setChecklists] = useState<Checklist[]>([])
+  const projectId = params.id as string
+  
+  const [project, setProject] = useState<any>(null)
+  const [stats, setStats] = useState<any>(null)
+  const [compliance, setCompliance] = useState<any[]>([])
+  const [alerts, setAlerts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [activeTab, setActiveTab] = useState('overview')
 
   useEffect(() => {
-    if (params.id) {
-      fetchProjectData(params.id as string)
+    if (projectId) {
+      loadProjectData()
     }
-  }, [params.id])
+  }, [projectId])
 
-  const fetchProjectData = async (projectId: string) => {
+  const loadProjectData = async () => {
     try {
-      // Fetch project details
-      const { data: projectData, error: projectError } = await supabase
-        .from('projects')
-        .select('*')
-        .eq('id', projectId)
-        .single()
+      const [projectData, statsData, complianceData, alertsData] = await Promise.all([
+        ProjectService.getProject(projectId),
+        ProjectService.getProjectStats(projectId),
+        ProjectService.getProjectCompliance(projectId),
+        ProjectService.getProjectAlerts(projectId, false)
+      ])
 
-      if (projectError) throw projectError
       setProject(projectData)
-
-      // Fetch associated checklists
-      const { data: checklistData, error: checklistError } = await supabase
-        .from('checklists')
-        .select('*')
-        .eq('project_id', projectId)
-        .order('created_at', { ascending: false })
-
-      if (checklistError) throw checklistError
-      setChecklists(checklistData || [])
+      setStats(statsData)
+      setCompliance(complianceData)
+      setAlerts(alertsData)
     } catch (error) {
-      console.error('Error fetching project:', error)
+      console.error('Error loading project:', error)
     } finally {
       setLoading(false)
     }
   }
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'active': return 'bg-green-500'
-      case 'pending': return 'bg-yellow-500'
-      case 'completed': return 'bg-blue-500'
-      default: return 'bg-gray-500'
-    }
+  const getComplianceColor = (score: number) => {
+    if (score >= 90) return 'text-green-600 bg-green-50'
+    if (score >= 70) return 'text-yellow-600 bg-yellow-50'
+    if (score >= 50) return 'text-orange-600 bg-orange-50'
+    return 'text-red-600 bg-red-50'
   }
 
-  const getComplianceColor = (score: number) => {
-    if (score >= 80) return 'text-green-600'
-    if (score >= 60) return 'text-yellow-600'
-    return 'text-red-600'
+  const getStatusBadge = (status: string) => {
+    const config = {
+      compliant: { color: 'bg-green-100 text-green-700', label: 'Compliant' },
+      in_progress: { color: 'bg-blue-100 text-blue-700', label: 'In Progress' },
+      requires_attention: { color: 'bg-orange-100 text-orange-700', label: 'Attention Required' },
+      non_compliant: { color: 'bg-red-100 text-red-700', label: 'Non-Compliant' },
+      not_started: { color: 'bg-gray-100 text-gray-700', label: 'Not Started' }
+    }
+    
+    const cfg = config[status as keyof typeof config] || config.not_started
+    return <Badge className={cfg.color}>{cfg.label}</Badge>
   }
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-lg">Loading project...</div>
-      </div>
-    )
+    return <div className="flex items-center justify-center h-screen">Loading project...</div>
   }
 
   if (!project) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-lg">Project not found</div>
-      </div>
-    )
+    return <div>Project not found</div>
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="container mx-auto p-6">
       {/* Header */}
-      <div className="border-b">
-        <div className="container mx-auto px-4 py-4">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => router.push('/dashboard')}
-            className="mb-4"
-          >
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Dashboard
-          </Button>
-          
-          <div className="flex justify-between items-start">
-            <div>
-              <h1 className="text-3xl font-bold">{project.name}</h1>
-              <div className="flex items-center gap-4 mt-2 text-muted-foreground">
-                <span className="flex items-center">
-                  <MapPin className="h-4 w-4 mr-1" />
-                  {project.address}
-                </span>
-                <span className="flex items-center">
-                  <Calendar className="h-4 w-4 mr-1" />
-                  Started {new Date(project.created_at).toLocaleDateString()}
-                </span>
+      <div className="mb-6">
+        <div className="flex items-start justify-between">
+          <div>
+            <h1 className="text-3xl font-bold mb-2">{project.name}</h1>
+            <div className="flex items-center gap-4 text-sm text-gray-600">
+              <div className="flex items-center gap-1">
+                <MapPin className="h-4 w-4" />
+                {project.address || 'No address specified'}
+              </div>
+              <div className="flex items-center gap-1">
+                <Users className="h-4 w-4" />
+                {stats?.team_size || 0} team members
+              </div>
+              <div className="flex items-center gap-1">
+                <Calendar className="h-4 w-4" />
+                {stats?.days_remaining || 0} days remaining
               </div>
             </div>
-            <Badge className={`${getStatusColor(project.status)} text-white`}>
-              {project.status}
-            </Badge>
+          </div>
+          <div className="flex items-center gap-2">
+            {getStatusBadge(project.compliance_status)}
+            {project.project_type?.requires_golden_thread && (
+              <Badge className="bg-purple-100 text-purple-700">
+                <Shield className="h-3 w-3 mr-1" />
+                Golden Thread Required
+              </Badge>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Content */}
-      <div className="container mx-auto px-4 py-6">
-        {/* Compliance Score Card */}
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle>Overall Compliance</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between mb-2">
-              <span className={`text-3xl font-bold ${getComplianceColor(project.compliance_score)}`}>
-                {project.compliance_score}%
-              </span>
-              <div className="text-sm text-muted-foreground">
-                Last updated {new Date(project.updated_at).toLocaleDateString()}
+      {/* Alerts */}
+      {alerts.length > 0 && (
+        <Alert className="mb-6 border-orange-200 bg-orange-50">
+          <AlertTriangle className="h-4 w-4 text-orange-600" />
+          <AlertDescription>
+            <span className="font-semibold text-orange-800">
+              {alerts.length} active {alerts.length === 1 ? 'alert' : 'alerts'}
+            </span>
+            {' - '}
+            {alerts[0].title}
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Key Metrics */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Compliance Score</p>
+                <p className={`text-3xl font-bold ${getComplianceColor(stats?.compliance_score || 0)}`}>
+                  {stats?.compliance_score || 0}%
+                </p>
+              </div>
+              <div className={`p-3 rounded-lg ${getComplianceColor(stats?.compliance_score || 0)}`}>
+                <TrendingUp className="h-6 w-6" />
               </div>
             </div>
-            <Progress value={project.compliance_score} className="h-3" />
+            <Progress value={stats?.compliance_score || 0} className="mt-3" />
           </CardContent>
         </Card>
 
-        {/* Tabs */}
-        <Tabs defaultValue="checklists" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="checklists">Checklists</TabsTrigger>
-            <TabsTrigger value="team">Team</TabsTrigger>
-            <TabsTrigger value="documents">Documents</TabsTrigger>
-            <TabsTrigger value="timeline">Timeline</TabsTrigger>
-          </TabsList>
-
-          {/* Checklists Tab */}
-          <TabsContent value="checklists" className="space-y-4">
-            <div className="flex justify-between items-center">
-              <h2 className="text-xl font-semibold">Active Checklists</h2>
-              <Button>
-                <Plus className="mr-2 h-4 w-4" />
-                Add Checklist
-              </Button>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Requirements</p>
+                <p className="text-3xl font-bold">
+                  {stats?.completed_requirements || 0}/{stats?.total_requirements || 0}
+                </p>
+              </div>
+              <div className="p-3 rounded-lg bg-blue-50">
+                <CheckCircle2 className="h-6 w-6 text-blue-600" />
+              </div>
             </div>
+            {stats?.overdue_items > 0 && (
+              <p className="text-sm text-red-600 mt-2">
+                {stats.overdue_items} overdue
+              </p>
+            )}
+          </CardContent>
+        </Card>
 
-            {checklists.length === 0 ? (
-              <Card>
-                <CardContent className="flex flex-col items-center justify-center py-8">
-                  <FileText className="h-12 w-12 text-muted-foreground mb-4" />
-                  <p className="text-muted-foreground">No checklists yet</p>
-                  <Button className="mt-4">Create First Checklist</Button>
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="grid gap-4 md:grid-cols-2">
-                {checklists.map((checklist) => (
-                  <Card key={checklist.id} className="cursor-pointer hover:shadow-lg transition-shadow">
-                    <CardHeader>
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <CardTitle className="text-lg">{checklist.name}</CardTitle>
-                          <CardDescription>{checklist.category}</CardDescription>
-                        </div>
-                        {checklist.completed_items === checklist.total_items ? (
-                          <CheckCircle className="h-5 w-5 text-green-500" />
-                        ) : (
-                          <AlertCircle className="h-5 w-5 text-yellow-500" />
-                        )}
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-2">
-                        <div className="flex justify-between text-sm">
-                          <span>Progress</span>
-                          <span>{checklist.completed_items} of {checklist.total_items}</span>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Documentation</p>
+                <p className="text-3xl font-bold">{stats?.photos_uploaded || 0}</p>
+                <p className="text-sm text-gray-500">Photos uploaded</p>
+              </div>
+              <div className="p-3 rounded-lg bg-green-50">
+                <Camera className="h-6 w-6 text-green-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Daily Reports</p>
+                <p className="text-3xl font-bold">{stats?.daily_reports || 0}</p>
+                <p className="text-sm text-gray-500">Submitted</p>
+              </div>
+              <div className="p-3 rounded-lg bg-purple-50">
+                <FileText className="h-6 w-6 text-purple-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Main Tabs */}
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList>
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="compliance">Compliance</TabsTrigger>
+          <TabsTrigger value="team">Team</TabsTrigger>
+          <TabsTrigger value="documents">Documents</TabsTrigger>
+          <TabsTrigger value="reports">Reports</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="overview">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Compliance by Category */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle>Compliance by Category</CardTitle>
+                <Button size="sm" variant="outline">
+                  <BarChart3 className="h-4 w-4 mr-2" />
+                  View Details
+                </Button>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {compliance
+                    .reduce((acc: any[], item) => {
+                      const category = item.template?.category
+                      if (!category) return acc
+                      
+                      const existing = acc.find(c => c.category === category)
+                      if (existing) {
+                        existing.total++
+                        if (item.status === 'complete') existing.completed++
+                      } else {
+                        acc.push({
+                          category,
+                          total: 1,
+                          completed: item.status === 'complete' ? 1 : 0
+                        })
+                      }
+                      return acc
+                    }, [])
+                    .map((cat) => (
+                      <div key={cat.category}>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-sm font-medium">{cat.category}</span>
+                          <span className="text-sm text-gray-500">
+                            {cat.completed}/{cat.total}
+                          </span>
                         </div>
                         <Progress 
-                          value={(checklist.completed_items / checklist.total_items) * 100} 
-                          className="h-2" 
+                          value={(cat.completed / cat.total) * 100} 
+                          className="h-2"
                         />
                       </div>
-                      <Button 
-                        className="w-full mt-4" 
-                        variant="outline"
-                        onClick={() => router.push(`/checklists/${checklist.id}`)}
-                      >
-                        View Checklist
-                      </Button>
-                    </CardContent>
-                  </Card>
-                ))}
+                    ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Recent Activity */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Recent Activity</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex items-start gap-3">
+                    <div className="p-2 bg-green-100 rounded-lg">
+                      <CheckCircle2 className="h-4 w-4 text-green-600" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">Risk Assessment completed</p>
+                      <p className="text-xs text-gray-500">By John Smith • 2 hours ago</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <div className="p-2 bg-blue-100 rounded-lg">
+                      <Camera className="h-4 w-4 text-blue-600" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">5 photos uploaded</p>
+                      <p className="text-xs text-gray-500">Site progress documentation • 4 hours ago</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <div className="p-2 bg-purple-100 rounded-lg">
+                      <FileText className="h-4 w-4 text-purple-600" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">Daily report submitted</p>
+                      <p className="text-xs text-gray-500">By Sarah Johnson • Yesterday</p>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="compliance">
+          <ComplianceChecklist 
+            projectId={projectId}
+            compliance={compliance}
+            onUpdate={loadProjectData}
+          />
+        </TabsContent>
+
+        <TabsContent value="team">
+          <TeamReadiness 
+            projectId={projectId}
+            onUpdate={loadProjectData}
+          />
+        </TabsContent>
+
+        <TabsContent value="documents">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle>Project Documents</CardTitle>
+              <div className="flex gap-2">
+                <PhotoUpload 
+                  projectId={projectId}
+                  onSuccess={loadProjectData}
+                />
+                <Button>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Upload Document
+                </Button>
               </div>
-            )}
-          </TabsContent>
+            </CardHeader>
+            <CardContent>
+              <p className="text-gray-500">Document management coming soon...</p>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-          {/* Team Tab */}
-          <TabsContent value="team">
-            <Card>
-              <CardHeader>
-                <CardTitle>Team Members</CardTitle>
-                <CardDescription>People assigned to this project</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center justify-center py-8">
-                  <Users className="h-12 w-12 text-muted-foreground mr-4" />
-                  <p className="text-muted-foreground">Team management coming soon</p>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
+        <TabsContent value="reports">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle>Daily Reports</CardTitle>
+              <DailyReportModal 
+                projectId={projectId}
+                onSuccess={loadProjectData}
+              />
+            </CardHeader>
+            <CardContent>
+              <p className="text-gray-500">Report history coming soon...</p>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
-          {/* Documents Tab */}
-          <TabsContent value="documents">
-            <Card>
-              <CardHeader>
-                <CardTitle>Project Documents</CardTitle>
-                <CardDescription>Compliance documentation and evidence</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center justify-center py-8">
-                  <FileText className="h-12 w-12 text-muted-foreground mr-4" />
-                  <p className="text-muted-foreground">Document upload coming soon</p>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Timeline Tab */}
-          <TabsContent value="timeline">
-            <Card>
-              <CardHeader>
-                <CardTitle>Activity Timeline</CardTitle>
-                <CardDescription>Recent project activity</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center justify-center py-8">
-                  <Clock className="h-12 w-12 text-muted-foreground mr-4" />
-                  <p className="text-muted-foreground">Activity tracking coming soon</p>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+      {/* Quick Actions */}
+      <div className="fixed bottom-6 right-6 flex flex-col gap-2">
+        <Button 
+          size="lg" 
+          className="shadow-lg"
+          onClick={() => setActiveTab('compliance')}
+        >
+          <CheckCircle2 className="h-5 w-5 mr-2" />
+          Complete Checklist
+        </Button>
+        <Button 
+          size="lg" 
+          variant="secondary"
+          className="shadow-lg"
+        >
+          <Camera className="h-5 w-5 mr-2" />
+          Upload Photo
+        </Button>
       </div>
     </div>
   )

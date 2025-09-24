@@ -1,180 +1,295 @@
 'use client'
 
-import { useState, useRef } from 'react'
-import { Camera, Upload, X, Loader2 } from 'lucide-react'
+import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
-import { supabase } from '@/lib/supabase'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Camera, Upload, Loader2, AlertCircle, X } from 'lucide-react'
+import { ProjectService } from '@/lib/project-service'
+import { useDropzone } from 'react-dropzone'
 
-type PhotoUploadProps = {
-  checklistItemId: string
-  onUploadComplete: (url: string) => void
+interface PhotoUploadProps {
+  projectId: string
+  onSuccess?: () => void
 }
 
-export function PhotoUpload({ checklistItemId, onUploadComplete }: PhotoUploadProps) {
-  const [uploading, setUploading] = useState(false)
-  const [preview, setPreview] = useState<string | null>(null)
-  const fileInputRef = useRef<HTMLInputElement>(null)
+export function PhotoUpload({ projectId, onSuccess }: PhotoUploadProps) {
+  const [open, setOpen] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [files, setFiles] = useState<File[]>([])
+  const [formData, setFormData] = useState({
+    description: '',
+    tags: [] as string[],
+    weather_conditions: '',
+    latitude: '',
+    longitude: ''
+  })
+  const [tagInput, setTagInput] = useState('')
 
-  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-
-    // Validate file
-    if (!file.type.startsWith('image/')) {
-      alert('Please select an image file')
-      return
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    accept: {
+      'image/*': ['.png', '.jpg', '.jpeg', '.webp']
+    },
+    maxSize: 10 * 1024 * 1024, // 10MB
+    multiple: true,
+    onDrop: (acceptedFiles) => {
+      setFiles(prev => [...prev, ...acceptedFiles])
     }
+  })
 
-    if (file.size > 10 * 1024 * 1024) { // 10MB limit
-      alert('File size must be less than 10MB')
-      return
-    }
-
-    // Show preview
-    const reader = new FileReader()
-    reader.onloadend = () => {
-      setPreview(reader.result as string)
-    }
-    reader.readAsDataURL(file)
-
-    // Upload to Supabase
-    await uploadFile(file)
+  const removeFile = (index: number) => {
+    setFiles(prev => prev.filter((_, i) => i !== index))
   }
 
-  const uploadFile = async (file: File) => {
-    setUploading(true)
+  const addTag = () => {
+    if (tagInput.trim() && !formData.tags.includes(tagInput.trim())) {
+      setFormData({
+        ...formData,
+        tags: [...formData.tags, tagInput.trim()]
+      })
+      setTagInput('')
+    }
+  }
+
+  const removeTag = (index: number) => {
+    setFormData({
+      ...formData,
+      tags: formData.tags.filter((_, i) => i !== index)
+    })
+  }
+
+  const handleSubmit = async () => {
+    setError('')
+    
+    if (files.length === 0) {
+      setError('Please select at least one photo to upload')
+      return
+    }
+
+    setLoading(true)
 
     try {
-      const fileExt = file.name.split('.').pop()
-      const fileName = `${checklistItemId}-${Date.now()}.${fileExt}`
-      const filePath = `checklist-evidence/${fileName}`
-
-      console.log('Uploading to Supabase storage:', filePath)
-
-      // Upload to Supabase Storage
-      const { data, error } = await supabase.storage
-        .from('evidence')
-        .upload(filePath, file)
-
-      if (error) {
-        console.error('Supabase storage error:', error)
-        throw new Error(`Upload failed: ${error.message}`)
+      // Upload each file
+      for (const file of files) {
+        await ProjectService.uploadCompliancePhoto(projectId, file, {
+          description: formData.description,
+          tags: formData.tags,
+          weather_conditions: formData.weather_conditions,
+          latitude: formData.latitude ? parseFloat(formData.latitude) : undefined,
+          longitude: formData.longitude ? parseFloat(formData.longitude) : undefined
+        })
       }
-
-      console.log('Upload successful:', data)
-
-      // Get public URL
-      const { data: { publicUrl } } = supabase.storage
-        .from('evidence')
-        .getPublicUrl(filePath)
-
-      if (!publicUrl) {
-        throw new Error('Failed to get public URL for uploaded file')
-      }
-
-      console.log('Public URL:', publicUrl)
-
-      // Save to database
-      await savePhotoRecord(checklistItemId, publicUrl)
-      onUploadComplete(publicUrl)
       
-      // Reset after successful upload
-      setTimeout(() => {
-        setPreview(null)
-      }, 2000)
-    } catch (error) {
-      console.error('Upload error:', error)
-      alert(`Failed to upload photo: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`)
+      setOpen(false)
+      setFiles([])
+      setFormData({
+        description: '',
+        tags: [],
+        weather_conditions: '',
+        latitude: '',
+        longitude: ''
+      })
+      onSuccess?.()
+    } catch (err: any) {
+      setError(err.message || 'Failed to upload photos')
     } finally {
-      setUploading(false)
-    }
-  }
-
-  const savePhotoRecord = async (itemId: string, url: string) => {
-    // TODO: Uncomment when photos table is created
-    // const { error } = await supabase
-    //   .from('photos')
-    //   .insert({
-    //     checklist_id: itemId, // You'll need to adjust this
-    //     item_id: itemId,
-    //     url: url,
-    //     metadata: {
-    //       uploaded_at: new Date().toISOString(),
-    //       device: navigator.userAgent
-    //     }
-    //   })
-
-    // if (error) console.error('Error saving photo record:', error)
-    
-    // For now, just log the upload
-    console.log('Photo uploaded:', { itemId, url })
-  }
-
-  const clearPreview = () => {
-    setPreview(null)
-    if (fileInputRef.current) {
-      fileInputRef.current.value = ''
+      setLoading(false)
     }
   }
 
   return (
-    <div className="space-y-3">
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        capture="environment"
-        onChange={handleFileSelect}
-        className="hidden"
-        disabled={uploading}
-      />
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button>
+          <Camera className="mr-2 h-4 w-4" />
+          Upload Photos
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Upload Site Photos</DialogTitle>
+          <DialogDescription>
+            Upload photos with metadata for compliance documentation and site progress tracking.
+          </DialogDescription>
+        </DialogHeader>
 
-      {preview ? (
-        <Card className="relative p-2">
-          <img 
-            src={preview} 
-            alt="Preview" 
-            className="w-full h-48 object-cover rounded"
-          />
-          {uploading ? (
-            <div className="absolute inset-0 bg-black/50 rounded flex items-center justify-center">
-              <Loader2 className="h-8 w-8 animate-spin text-white" />
-              <span className="ml-2 text-white">Uploading...</span>
-            </div>
-          ) : (
-            <Button
-              size="sm"
-              variant="destructive"
-              className="absolute top-2 right-2"
-              onClick={clearPreview}
+        <div className="space-y-4">
+          {/* File Upload Area */}
+          <div>
+            <Label>Photos</Label>
+            <div
+              {...getRootProps()}
+              className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition
+                ${isDragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-gray-400'}`}
             >
-              <X className="h-4 w-4" />
-            </Button>
+              <input {...getInputProps()} />
+              <Camera className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+              <p className="text-sm text-gray-600">
+                {isDragActive
+                  ? 'Drop the photos here'
+                  : 'Drag and drop photos, or click to browse'}
+              </p>
+              <p className="text-xs text-gray-500 mt-1">
+                Images up to 10MB each
+              </p>
+            </div>
+          </div>
+
+          {/* Selected Files */}
+          {files.length > 0 && (
+            <div className="space-y-2">
+              <Label>Selected Photos ({files.length})</Label>
+              <div className="space-y-2 max-h-32 overflow-y-auto">
+                {files.map((file, index) => (
+                  <div key={index} className="flex items-center justify-between bg-gray-50 px-3 py-2 rounded">
+                    <div className="flex items-center gap-2">
+                      <Camera className="h-4 w-4 text-gray-500" />
+                      <span className="text-sm font-medium">{file.name}</span>
+                      <span className="text-xs text-gray-500">
+                        ({(file.size / 1024 / 1024).toFixed(2)} MB)
+                      </span>
+                    </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => removeFile(index)}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </div>
           )}
-        </Card>
-      ) : (
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={uploading}
-            className="flex-1"
-          >
-            <Camera className="mr-2 h-4 w-4" />
-            Take Photo
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={uploading}
-            className="flex-1"
-          >
-            <Upload className="mr-2 h-4 w-4" />
-            Upload
-          </Button>
+
+          {/* Description */}
+          <div>
+            <Label htmlFor="description">Description</Label>
+            <Textarea
+              id="description"
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              placeholder="Describe what these photos show (e.g., 'Foundation work progress', 'Safety equipment check')"
+              rows={3}
+            />
+          </div>
+
+          {/* Tags */}
+          <div>
+            <Label>Tags</Label>
+            <div className="space-y-2">
+              <div className="flex gap-2">
+                <Input
+                  value={tagInput}
+                  onChange={(e) => setTagInput(e.target.value)}
+                  placeholder="Enter tag (e.g., 'foundation', 'safety', 'progress')"
+                  onKeyPress={(e) => e.key === 'Enter' && addTag()}
+                />
+                <Button type="button" onClick={addTag} variant="outline">
+                  Add
+                </Button>
+              </div>
+              {formData.tags.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {formData.tags.map((tag, index) => (
+                    <div key={index} className="flex items-center gap-1 bg-blue-100 text-blue-800 px-2 py-1 rounded text-sm">
+                      {tag}
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        className="h-4 w-4 p-0"
+                        onClick={() => removeTag(index)}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Weather Conditions */}
+          <div>
+            <Label htmlFor="weather">Weather Conditions</Label>
+            <Input
+              id="weather"
+              value={formData.weather_conditions}
+              onChange={(e) => setFormData({ ...formData, weather_conditions: e.target.value })}
+              placeholder="e.g., 'Sunny, 15°C, light wind'"
+            />
+          </div>
+
+          {/* Location (Optional) */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="latitude">Latitude (Optional)</Label>
+              <Input
+                id="latitude"
+                type="number"
+                step="any"
+                value={formData.latitude}
+                onChange={(e) => setFormData({ ...formData, latitude: e.target.value })}
+                placeholder="e.g., 51.5074"
+              />
+            </div>
+            <div>
+              <Label htmlFor="longitude">Longitude (Optional)</Label>
+              <Input
+                id="longitude"
+                type="number"
+                step="any"
+                value={formData.longitude}
+                onChange={(e) => setFormData({ ...formData, longitude: e.target.value })}
+                placeholder="e.g., -0.1278"
+              />
+            </div>
+          </div>
+
+          {error && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+
+          <div className="flex justify-end gap-3">
+            <Button
+              variant="outline"
+              onClick={() => setOpen(false)}
+              disabled={loading}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleSubmit} disabled={loading || files.length === 0}>
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Uploading...
+                </>
+              ) : (
+                <>
+                  <Upload className="mr-2 h-4 w-4" />
+                  Upload {files.length} Photo{files.length !== 1 ? 's' : ''}
+                </>
+              )}
+            </Button>
+          </div>
         </div>
-      )}
-    </div>
+      </DialogContent>
+    </Dialog>
   )
 }
