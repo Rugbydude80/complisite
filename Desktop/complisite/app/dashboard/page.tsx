@@ -1,23 +1,60 @@
-import { Header } from "@/components/header"
-import { StatsCards } from "@/components/stats-cards"
-import { ProjectsGrid } from "@/components/projects-grid"
-import { AddProjectButton } from "@/components/add-project-button"
+'use client'
+
+import { useState, useEffect } from 'react'
+import { AdminDashboard } from '@/components/dashboards/admin-dashboard'
+import { ManagerDashboard } from '@/components/dashboards/manager-dashboard'
+import { WorkerDashboard } from '@/components/dashboards/worker-dashboard'
+import { supabase } from '@/lib/supabase'
 
 export default function Dashboard() {
-  return (
-    <div className="min-h-screen bg-background">
-      <Header />
-      <main className="container mx-auto px-4 py-6 space-y-6">
-        <div className="space-y-2">
-          <h1 className="text-3xl font-bold tracking-tight text-balance">Construction Compliance Dashboard</h1>
-          <p className="text-muted-foreground text-pretty">
-            Monitor project compliance, track checklists, and manage construction oversight
-          </p>
-        </div>
-        <StatsCards />
-        <ProjectsGrid />
-      </main>
-      <AddProjectButton />
-    </div>
-  )
+  const [userRole, setUserRole] = useState<string>('worker')
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    getUserRole()
+  }, [])
+
+  const getUserRole = async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+
+    // Check if user is an organization admin
+    const { data: orgMember } = await supabase
+      .from('organization_members')
+      .select('role')
+      .eq('user_id', user.id)
+      .single()
+
+    if (orgMember?.role === 'admin') {
+      setUserRole('admin')
+    } else if (orgMember?.role === 'member') {
+      // Check if they're a project manager
+      const { data: projectRole } = await supabase
+        .from('project_members')
+        .select('role')
+        .eq('user_id', user.id)
+        .eq('role', 'admin')
+        .limit(1)
+
+      setUserRole(projectRole ? 'manager' : 'worker')
+    } else {
+      setUserRole('worker')
+    }
+
+    setLoading(false)
+  }
+
+  if (loading) {
+    return <div>Loading...</div>
+  }
+
+  // Render different dashboard based on role
+  switch (userRole) {
+    case 'admin':
+      return <AdminDashboard />
+    case 'manager':
+      return <ManagerDashboard />
+    default:
+      return <WorkerDashboard />
+  }
 }
