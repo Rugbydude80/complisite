@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -14,7 +14,13 @@ export default function AuthPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [mounted, setMounted] = useState(false)
   const supabase = createClient()
+
+  // Prevent hydration issues with browser extensions
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -98,6 +104,30 @@ export default function AuthPage() {
     }
   }
 
+  // Prevent hydration mismatch by not rendering until mounted
+  if (!mounted) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="w-full max-w-md p-4">
+          <div className="flex flex-col items-center mb-8">
+            <div className="flex items-center gap-2 mb-2">
+              <Building2 className="h-8 w-8 text-blue-600" />
+              <span className="text-2xl font-bold">CompliSite</span>
+            </div>
+            <p className="text-sm text-gray-600">Construction Compliance Made Simple</p>
+          </div>
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-center">
+                <Loader2 className="h-6 w-6 animate-spin" />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="w-full max-w-md p-4">
@@ -130,7 +160,7 @@ export default function AuthPage() {
                       {error}
                     </div>
                   )}
-                  <div className="space-y-2">
+                  <div className="space-y-2" suppressHydrationWarning={true}>
                     <Label htmlFor="email">Email</Label>
                     <Input
                       id="email"
@@ -140,9 +170,10 @@ export default function AuthPage() {
                       required
                       disabled={loading}
                       suppressHydrationWarning={true}
+                      autoComplete="email"
                     />
                   </div>
-                  <div className="space-y-2">
+                  <div className="space-y-2" suppressHydrationWarning={true}>
                     <Label htmlFor="password">Password</Label>
                     <Input
                       id="password"
@@ -151,6 +182,7 @@ export default function AuthPage() {
                       required
                       disabled={loading}
                       suppressHydrationWarning={true}
+                      autoComplete="current-password"
                     />
                   </div>
                 </CardContent>

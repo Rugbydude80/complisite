@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -14,6 +14,7 @@ import { Loader2 } from "lucide-react"
 
 export default function SignupPage() {
   const [isLoading, setIsLoading] = useState(false)
+  const [mounted, setMounted] = useState(false)
   const [signupData, setSignupData] = useState({
     companyName: "",
     fullName: "",
@@ -24,6 +25,11 @@ export default function SignupPage() {
     acceptTerms: false,
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
+
+  // Prevent hydration issues with browser extensions
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   const validateSignup = () => {
     const newErrors: Record<string, string> = {}
@@ -81,6 +87,19 @@ export default function SignupPage() {
     // Simulate Google OAuth
     await new Promise((resolve) => setTimeout(resolve, 1500))
     setIsLoading(false)
+  }
+
+  // Prevent hydration mismatch by not rendering until mounted
+  if (!mounted) {
+    return (
+      <Card className="border-border">
+        <CardContent className="p-6">
+          <div className="flex items-center justify-center">
+            <Loader2 className="h-6 w-6 animate-spin" />
+          </div>
+        </CardContent>
+      </Card>
+    )
   }
 
   return (
