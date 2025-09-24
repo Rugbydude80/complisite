@@ -31,16 +31,22 @@ export default function AuthPage() {
     const email = formData.get('email') as string
     const password = formData.get('password') as string
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    })
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
 
-    if (error) {
-      setError(error.message)
+      if (error) {
+        setError(error.message)
+        setLoading(false)
+      } else {
+        router.push('/dashboard')
+      }
+    } catch (err) {
+      console.error('Login error:', err)
+      setError('Database connection error. Please run the database setup first.')
       setLoading(false)
-    } else {
-      router.push('/dashboard')
     }
   }
 
@@ -76,22 +82,29 @@ export default function AuthPage() {
 
       // Create company and user records
       if (authData.user) {
-        const { data: company, error: companyError } = await supabase
-          .from('companies')
-          .insert({ name: companyName })
-          .select()
-          .single()
+        try {
+          const { data: company, error: companyError } = await supabase
+            .from('companies')
+            .insert({ name: companyName })
+            .select()
+            .single()
 
-        if (!companyError && company) {
-          await supabase
-            .from('users')
-            .insert({
-              id: authData.user.id,
-              email: email,
-              full_name: fullName,
-              company_id: company.id,
-              role: 'admin'
-            })
+          if (!companyError && company) {
+            await supabase
+              .from('users')
+              .insert({
+                id: authData.user.id,
+                email: email,
+                full_name: fullName,
+                company_id: company.id,
+                role: 'admin'
+              })
+          }
+        } catch (dbError) {
+          console.error('Database error during signup:', dbError)
+          setError('Database setup incomplete. Please run the database scripts first.')
+          setLoading(false)
+          return
         }
       }
 
@@ -99,7 +112,8 @@ export default function AuthPage() {
       setError(null)
       router.push('/dashboard')
     } catch (err) {
-      setError('An unexpected error occurred. Please try again.')
+      console.error('Signup error:', err)
+      setError('Database connection error. Please run the database setup first.')
       setLoading(false)
     }
   }
