@@ -14,7 +14,7 @@ import {
   Download,
   Eye
 } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
+import { createClient } from '@/lib/supabase'
 import { CertificateManagement } from '@/components/certificate-management'
 
 interface Certificate {
