@@ -16,6 +16,8 @@ import {
   Clock,
   MoreHorizontal
 } from 'lucide-react'
+import { createClient } from '@/lib/supabase'
+import { TeamService } from '@/lib/team-service'
 
 interface TeamMember {
   id: string
@@ -31,8 +33,10 @@ interface TeamMember {
 }
 
 export default function TeamPage() {
+  const supabase = createClient()
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     loadTeamMembers()
@@ -40,57 +44,44 @@ export default function TeamPage() {
 
   const loadTeamMembers = async () => {
     try {
-      // Mock data for now - replace with actual Supabase query
-      const mockTeamMembers: TeamMember[] = [
-        {
-          id: '1',
-          name: 'John Smith',
-          email: 'john.smith@company.com',
-          role: 'Foreman',
-          trade: 'Electrical',
-          status: 'active',
-          certificates: 8,
-          compliance_rate: 95,
-          last_active: '2024-09-24'
-        },
-        {
-          id: '2',
-          name: 'Sarah Johnson',
-          email: 'sarah.johnson@company.com',
-          role: 'Supervisor',
-          trade: 'Safety',
-          status: 'active',
-          certificates: 12,
-          compliance_rate: 100,
-          last_active: '2024-09-24'
-        },
-        {
-          id: '3',
-          name: 'Mike Wilson',
-          email: 'mike.wilson@company.com',
-          role: 'Worker',
-          trade: 'Carpentry',
-          status: 'active',
-          certificates: 6,
-          compliance_rate: 85,
-          last_active: '2024-09-23'
-        },
-        {
-          id: '4',
-          name: 'Lisa Brown',
-          email: 'lisa.brown@company.com',
-          role: 'Worker',
-          trade: 'Plumbing',
-          status: 'pending',
-          certificates: 4,
-          compliance_rate: 70,
-          last_active: '2024-09-20'
-        }
-      ]
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        setError('Please log in to view team members')
+        return
+      }
 
-      setTeamMembers(mockTeamMembers)
+      // Get user's organization
+      const { data: orgMember } = await supabase
+        .from('secure_organization_members')
+        .select('organization_id')
+        .eq('user_id', user.id)
+        .single()
+
+      if (!orgMember) {
+        setError('You are not part of any organization')
+        return
+      }
+
+      // Load team members from database
+      const members = await TeamService.getMembers(orgMember.organization_id)
+      
+      // Transform to our interface
+      const transformedMembers: TeamMember[] = members.map(member => ({
+        id: member.id,
+        name: member.user_profile?.full_name || 'Unknown',
+        email: member.user_profile?.email || 'No email',
+        role: member.role,
+        trade: member.user_profile?.trade || 'Unknown',
+        status: member.status as 'active' | 'inactive' | 'pending',
+        certificates: 0, // TODO: Calculate from certificates
+        compliance_rate: 0, // TODO: Calculate from compliance data
+        last_active: member.created_at
+      }))
+
+      setTeamMembers(transformedMembers)
     } catch (error) {
       console.error('Error loading team members:', error)
+      setError('Failed to load team members. Please check your connection and try again.')
     } finally {
       setLoading(false)
     }
@@ -132,6 +123,25 @@ export default function TeamPage() {
               <div key={i} className="h-24 bg-gray-200 rounded"></div>
             ))}
           </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="p-6">
+        <div className="text-center py-8">
+          <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-red-600 mb-2">Error Loading Team</h2>
+          <p className="text-gray-600 mb-4">{error}</p>
+          <Button onClick={() => {
+            setError(null)
+            setLoading(true)
+            loadTeamMembers()
+          }}>
+            Try Again
+          </Button>
         </div>
       </div>
     )

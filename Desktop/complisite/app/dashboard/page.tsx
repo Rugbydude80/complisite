@@ -4,9 +4,10 @@ import { useState, useEffect } from 'react'
 import { AdminDashboard } from '@/components/dashboards/admin-dashboard'
 import { ManagerDashboard } from '@/components/dashboards/manager-dashboard'
 import { WorkerDashboard } from '@/components/dashboards/worker-dashboard'
-import { supabase } from '@/lib/supabase'
+import { createClient } from '@/lib/supabase'
 
 export default function Dashboard() {
+  const supabase = createClient()
   const [userRole, setUserRole] = useState<string>('worker')
   const [loading, setLoading] = useState(true)
 
@@ -26,7 +27,7 @@ export default function Dashboard() {
       // Check if user is an organization admin
       try {
         const { data: orgMember } = await supabase
-          .from('organization_members')
+          .from('secure_organization_members')
           .select('role')
           .eq('user_id', user.id)
           .single()

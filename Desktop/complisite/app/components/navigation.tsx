@@ -29,7 +29,7 @@ import {
   Plus,
   Upload
 } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
+import { createClient } from '@/lib/supabase'
 
 interface NavItem {
   label: string
@@ -42,6 +42,7 @@ interface NavItem {
 export function Navigation() {
   const pathname = usePathname()
   const router = useRouter()
+  const supabase = createClient()
   const [user, setUser] = useState<any>(null)
   const [userRole, setUserRole] = useState<string>('worker')
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)

@@ -13,20 +13,38 @@ export function StatsCards() {
     pendingItems: 0
   })
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     async function fetchStats() {
       try {
         const data = await getStats()
         setStats(data)
+        setError(null)
       } catch (error) {
         console.error('Error fetching stats:', error)
+        setError(error instanceof Error ? error.message : 'Failed to load statistics')
       } finally {
         setLoading(false)
       }
     }
     fetchStats()
   }, [])
+
+  if (error) {
+    return (
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card className="col-span-full">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-center text-red-600">
+              <AlertCircle className="h-8 w-8 mr-2" />
+              <span>{error}</span>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
 
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

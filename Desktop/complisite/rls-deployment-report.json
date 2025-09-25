@@ -1,0 +1,15 @@
+{
+  "timestamp": "2025-09-25T14:15:58.165Z",
+  "supabase_url": "https://dhabuefutrceqfgbxltp.supabase.co",
+  "connection_status": "Failed",
+  "recursion_errors": {
+    "organization_members": true,
+    "project_members": true,
+    "user_certificates": true
+  },
+  "next_steps": [
+    "Deploy DEPLOY_RLS_FIX.sql via Supabase Dashboard",
+    "Run test-rls-fix.sql to verify the fix",
+    "Test your application queries"
+  ]
+}

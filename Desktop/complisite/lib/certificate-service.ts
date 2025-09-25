@@ -133,9 +133,9 @@ export class CertificateService {
         certificate_type:certificate_types(*),
         user:user_profiles!user_id(full_name, email)
       `)
-      .in('user_id', 
+      .in('user_id',
         await supabase
-          .from('organization_members')
+          .from('secure_organization_members')
           .select('user_id')
           .eq('organization_id', organizationId)
           .then(res => res.data?.map(m => m.user_id) || [])
@@ -325,7 +325,7 @@ export class CertificateService {
       .eq('status', 'verified')
       .in('user_id',
         await supabase
-          .from('organization_members')
+          .from('secure_organization_members')
           .select('user_id')
           .eq('organization_id', organizationId)
           .then(res => res.data?.map(m => m.user_id) || [])
@@ -339,7 +339,7 @@ export class CertificateService {
   // Helper to get user's organization
   private static async getUserOrganizationId(userId: string): Promise<string | null> {
     const { data } = await supabase
-      .from('organization_members')
+      .from('secure_organization_members')
       .select('organization_id')
       .eq('user_id', userId)
       .single()

@@ -22,31 +22,36 @@ export async function getProjects(): Promise<Project[]> {
 }
 
 export async function getStats(): Promise<Stats> {
-  const projects = await ProjectService.getProjects()
-  
-  // Get active checklists
-  const { count: checklistCount } = await supabase
-    .from('checklists')
-    .select('*', { count: 'exact', head: true })
-  
-  // Get average compliance
-  const avgCompliance = projects.length > 0
-    ? Math.round(projects.reduce((acc, p) => acc + p.compliance_score, 0) / projects.length)
-    : 0
-  
-  // Get pending items (checklists not 100% complete)
-  const { data: checklists } = await supabase
-    .from('checklists')
-    .select('total_items, completed_items')
-  
-  const pendingItems = checklists
-    ? checklists.reduce((acc, c) => acc + (c.total_items - c.completed_items), 0)
-    : 0
-  
-  return {
-    totalProjects: projects.length,
-    activeChecklists: checklistCount || 0,
-    averageCompliance: avgCompliance,
-    pendingItems: pendingItems
+  try {
+    const projects = await ProjectService.getProjects()
+    
+    // Get active checklists
+    const { count: checklistCount } = await supabase
+      .from('project_compliance')
+      .select('*', { count: 'exact', head: true })
+    
+    // Get average compliance
+    const avgCompliance = projects.length > 0
+      ? Math.round(projects.reduce((acc, p) => acc + p.overall_progress, 0) / projects.length)
+      : 0
+    
+    // Get pending items (compliance items not complete)
+    const { data: compliance } = await supabase
+      .from('project_compliance')
+      .select('status')
+    
+    const pendingItems = compliance
+      ? compliance.filter(c => c.status !== 'complete').length
+      : 0
+    
+    return {
+      totalProjects: projects.length,
+      activeChecklists: checklistCount || 0,
+      averageCompliance: avgCompliance,
+      pendingItems: pendingItems
+    }
+  } catch (error) {
+    console.error('Error getting stats:', error)
+    throw new Error('Failed to load statistics. Please check your connection and try again.')
   }
 }

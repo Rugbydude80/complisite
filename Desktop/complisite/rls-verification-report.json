@@ -1,0 +1,31 @@
+{
+  "timestamp": "2025-09-25T15:09:15.838Z",
+  "tests": {
+    "connection": {
+      "passed": true
+    },
+    "organization_members": {
+      "passed": true
+    },
+    "project_members": {
+      "passed": true
+    },
+    "user_certificates": {
+      "passed": true
+    },
+    "complex_queries": {
+      "passed": true,
+      "error": "Could not find a relationship between 'organization_members' and 'users' in the schema cache",
+      "recursion_error": false
+    },
+    "security_boundaries": {
+      "passed": true
+    }
+  },
+  "summary": {
+    "total": 6,
+    "passed": 6,
+    "failed": 0,
+    "recursion_errors": 0
+  }
+}

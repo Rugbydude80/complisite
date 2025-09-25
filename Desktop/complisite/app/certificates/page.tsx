@@ -34,8 +34,10 @@ interface Certificate {
 }
 
 export default function CertificatesPage() {
+  const supabase = createClient()
   const [certificates, setCertificates] = useState<Certificate[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     loadCertificates()
@@ -55,38 +57,8 @@ export default function CertificatesPage() {
 
       if (error) {
         console.error('Error loading certificates:', error)
-        // Fall back to mock data if database query fails
-        const mockCertificates: Certificate[] = [
-          {
-            id: '1',
-            name: 'OSHA 30-Hour Construction Safety',
-            category: 'Safety Training',
-            type: 'OSHA 30-Hour Construction Safety',
-            issuingOrganization: 'OSHA (Occupational Safety and Health Administration)',
-            certificateNumber: 'OSH-2024-001234',
-            status: 'valid',
-            issue_date: '2024-01-15',
-            expiry_date: '2025-01-15',
-            isRenewable: true,
-            requiresTraining: false,
-            description: 'Comprehensive construction safety training covering hazard recognition and prevention'
-          },
-          {
-            id: '2',
-            name: 'First Aid CPR/AED',
-            category: 'Medical Certifications',
-            type: 'First Aid CPR/AED',
-            issuingOrganization: 'American Red Cross',
-            certificateNumber: 'ARC-2024-567890',
-            status: 'expiring',
-            issue_date: '2024-06-01',
-            expiry_date: '2024-12-01',
-            isRenewable: true,
-            requiresTraining: true,
-            description: 'Basic life support and automated external defibrillator training'
-          }
-        ]
-        setCertificates(mockCertificates)
+        setError('Failed to load certificates. Please check your connection and try again.')
+        setCertificates([])
         return
       }
 
@@ -164,6 +136,25 @@ export default function CertificatesPage() {
               <div key={i} className="h-24 bg-gray-200 rounded"></div>
             ))}
           </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="p-6">
+        <div className="text-center py-8">
+          <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-red-600 mb-2">Error Loading Certificates</h2>
+          <p className="text-gray-600 mb-4">{error}</p>
+          <Button onClick={() => {
+            setError(null)
+            setLoading(true)
+            loadCertificates()
+          }}>
+            Try Again
+          </Button>
         </div>
       </div>
     )

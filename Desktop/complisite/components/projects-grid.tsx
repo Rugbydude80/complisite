@@ -11,12 +11,23 @@ import { getProjects, type Project } from '@/lib/data'
 
 export function ProjectsGrid() {
   const [projects, setProjects] = useState<Project[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const router = useRouter()
 
   useEffect(() => {
     async function fetchProjects() {
-      const data = await getProjects()
-      setProjects(data)
+      try {
+        setLoading(true)
+        const data = await getProjects()
+        setProjects(data)
+        setError(null)
+      } catch (error) {
+        console.error('Error fetching projects:', error)
+        setError(error instanceof Error ? error.message : 'Failed to load projects')
+      } finally {
+        setLoading(false)
+      }
     }
     fetchProjects()
   }, [])
@@ -34,6 +45,44 @@ export function ProjectsGrid() {
     if (score >= 80) return 'text-green-600'
     if (score >= 60) return 'text-yellow-600'
     return 'text-red-600'
+  }
+
+  if (loading) {
+    return (
+      <div>
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-semibold">Active Projects</h2>
+          <Button variant="ghost" disabled>View All</Button>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-48 bg-gray-200 rounded animate-pulse"></div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div>
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-semibold">Active Projects</h2>
+          <Button variant="ghost" disabled>View All</Button>
+        </div>
+        <div className="text-center py-8">
+          <div className="text-red-600 mb-4">{error}</div>
+          <Button onClick={() => {
+            setError(null)
+            setLoading(true)
+            // Re-trigger the useEffect
+            window.location.reload()
+          }}>
+            Try Again
+          </Button>
+        </div>
+      </div>
+    )
   }
 
   return (

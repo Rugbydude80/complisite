@@ -80,6 +80,33 @@ export interface ChecklistCompletion {
 }
 
 export class ProjectService {
+  // Get all projects for the current user's organization
+  static async getProjects(): Promise<Project[]> {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error('Not authenticated')
+
+    // Get user's organization
+    const { data: orgMember } = await supabase
+      .from('secure_organization_members')
+      .select('organization_id')
+      .eq('user_id', user.id)
+      .single()
+
+    if (!orgMember) throw new Error('User not part of any organization')
+
+    const { data, error } = await supabase
+      .from('projects')
+      .select(`
+        *,
+        project_type:project_types(*)
+      `)
+      .eq('organization_id', orgMember.organization_id)
+      .order('created_at', { ascending: false })
+
+    if (error) throw error
+    return data || []
+  }
+
   // Create new project with compliance initialization
   static async createProject(projectData: Partial<Project>): Promise<Project> {
     const { data: project, error } = await supabase

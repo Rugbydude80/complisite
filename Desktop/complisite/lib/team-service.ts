@@ -8,7 +8,7 @@ export interface OrganizationMember {
   user_id: string
   role: Role
   status: MemberStatus
-  created_at: string
+  joined_at: string
   user_profile?: {
     full_name: string
     email: string
@@ -32,13 +32,13 @@ export class TeamService {
   // Get all organization members
   static async getMembers(organizationId: string): Promise<OrganizationMember[]> {
     const { data, error } = await supabase
-      .from('organization_members')
+      .from('secure_organization_members')
       .select(`
         *,
         user_profile:user_profiles(*)
       `)
       .eq('organization_id', organizationId)
-      .order('created_at', { ascending: false })
+      .order('joined_at', { ascending: false })
 
     if (error) throw error
     return data || []
@@ -53,7 +53,7 @@ export class TeamService {
   ): Promise<Invitation> {
     // Check if user already exists in org
     const { data: existingMember } = await supabase
-      .from('organization_members')
+      .from('secure_organization_members')
       .select('id')
       .eq('organization_id', organizationId)
       .eq('user_id', (
@@ -153,7 +153,7 @@ export class TeamService {
   ): Promise<void> {
     const { error } = await supabase
       .from('organization_members')
-      .update({ role: newRole, updated_at: new Date().toISOString() })
+      .update({ role: newRole })
       .eq('organization_id', organizationId)
       .eq('user_id', userId)
 
@@ -176,7 +176,7 @@ export class TeamService {
   ): Promise<void> {
     const { error } = await supabase
       .from('organization_members')
-      .update({ status, updated_at: new Date().toISOString() })
+      .update({ status })
       .eq('organization_id', organizationId)
       .eq('user_id', userId)
 
